@@ -22,10 +22,10 @@
     --green-dim: #3d7a4c;
     --red: #d45d5d;
     --blue: #5b9bd5;
+    --purple: #a78bda;
     --active-glow: rgba(232, 164, 74, 0.12);
     --done-bg: #1e2420;
     --radius: 10px;
-    --shadow: 0 2px 12px rgba(0,0,0,0.3);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -131,7 +131,7 @@
   }
   .setup-btn span { display: block; font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 
-  /* ─── FIREBASE CONFIG SCREEN ─── */
+  /* ─── CONFIG WARNING ─── */
   .config-warning {
     background: rgba(212, 93, 93, 0.1);
     border: 1px solid rgba(212, 93, 93, 0.3);
@@ -153,7 +153,7 @@
   /* ─── MAIN CONTENT ─── */
   .main { padding: 20px 24px; max-width: 800px; margin: 0 auto; }
 
-  /* ─── ADD QUESTION FORM (MODERATOR) ─── */
+  /* ─── ADD FORM (MODERATOR) ─── */
   .add-form {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -262,7 +262,6 @@
     line-height: 1.45;
     color: var(--text);
   }
-  /* Presenter gets bigger text */
   .presenter-view .q-text { font-size: 21px; line-height: 1.5; }
   .presenter-view .q-name { font-size: 15px; }
   .presenter-view .q-upvotes { font-size: 16px; padding: 6px 12px; }
@@ -286,9 +285,18 @@
   .q-btn.btn-activate:hover { border-color: var(--accent); color: var(--accent); }
   .q-btn.btn-done:hover { border-color: var(--green); color: var(--green); }
   .q-btn.btn-delete:hover { border-color: var(--red); color: var(--red); }
+  .q-btn.btn-edit:hover { border-color: var(--blue); color: var(--blue); }
+  .q-btn.btn-top:hover { border-color: var(--purple); color: var(--purple); }
 
-  /* Presenter gets bigger touch targets */
+  .q-btn.btn-top {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+
   .presenter-view .q-btn { width: 52px; height: 52px; font-size: 22px; }
+  .presenter-view .q-btn.btn-top { font-size: 13px; }
   .presenter-view .q-card { padding: 20px 22px; }
 
   .q-status-badge {
@@ -301,14 +309,62 @@
     margin-top: 6px;
     display: inline-block;
   }
-  .badge-active {
-    background: rgba(232, 164, 74, 0.15);
-    color: var(--accent);
+  .badge-active { background: rgba(232, 164, 74, 0.15); color: var(--accent); }
+  .badge-done { background: rgba(92, 178, 112, 0.15); color: var(--green); }
+
+  /* ─── EDIT MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
   }
-  .badge-done {
-    background: rgba(92, 178, 112, 0.15);
-    color: var(--green);
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
   }
+  .modal h3 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .modal .form-row { margin-bottom: 12px; }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+  .btn-modal {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-modal:hover { background: var(--surface-hover); }
+  .btn-modal.btn-save {
+    background: var(--accent);
+    color: #1a1a1e;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  .btn-modal.btn-save:hover { background: var(--accent-dim); }
 
   /* ─── EMPTY STATE ─── */
   .empty-state {
@@ -319,12 +375,8 @@
   .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
   .empty-state p { font-size: 15px; }
 
-  /* ─── FONT SIZE CONTROL (PRESENTER) ─── */
-  .font-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  /* ─── FONT SIZE CONTROL ─── */
+  .font-control { display: flex; align-items: center; gap: 8px; }
   .font-btn {
     width: 32px; height: 32px;
     border-radius: 6px;
@@ -351,9 +403,7 @@
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════ -->
-<!-- SETUP / ROLE SELECT                             -->
-<!-- ════════════════════════════════════════════════ -->
+<!-- SETUP -->
 <div id="setupScreen" class="setup-screen" style="display:none;">
   <h1>KC26 Q&A Curation</h1>
   <p>Key Colours Webinar 2026 — Live Q&A Tool</p>
@@ -370,12 +420,26 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════════ -->
-<!-- APP                                             -->
-<!-- ════════════════════════════════════════════════ -->
-<div id="app" style="display:none;">
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Vraag bewerken</h3>
+    <div class="form-row">
+      <input class="input-field" id="editName" placeholder="Naam">
+      <input class="input-field input-small" id="editUpvotes" type="number" min="0" placeholder="▲">
+    </div>
+    <div class="form-row">
+      <input class="input-field" id="editQuestion" placeholder="Vraag...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal" onclick="closeEdit()">Annuleren</button>
+      <button class="btn-modal btn-save" onclick="saveEdit()">Opslaan</button>
+    </div>
+  </div>
+</div>
 
-  <!-- HEADER -->
+<!-- APP -->
+<div id="app" style="display:none;">
   <div class="header">
     <div class="header-left">
       <div class="header-logo">KC26 Q&A</div>
@@ -392,10 +456,7 @@
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main" id="mainContent">
-
-    <!-- ADD FORM (moderator only) -->
     <div class="add-form" id="addForm" style="display:none;">
       <h3>Nieuwe vraag toevoegen</h3>
       <div class="form-row">
@@ -408,7 +469,6 @@
       </div>
     </div>
 
-    <!-- QUESTION LISTS -->
     <div id="pendingSection">
       <div class="section-label" id="pendingLabel">Te beantwoorden</div>
       <div class="question-list" id="pendingList"></div>
@@ -421,15 +481,14 @@
 
     <div class="empty-state" id="emptyState" style="display:none;">
       <div class="icon">💬</div>
-      <p id="emptyText">Nog geen vragen doorgestuurd.</p>
+      <p>Nog geen vragen doorgestuurd.</p>
     </div>
-
   </div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════
-// FIREBASE CONFIG — VUL HIER JE EIGEN GEGEVENS IN
+// FIREBASE CONFIG
 // ═══════════════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyDH9JM18-hDR_gd0kAmVlDpdphK2foPl0g",
@@ -442,19 +501,23 @@ const firebaseConfig = {
 };
 
 // ═══════════════════════════════════════════════════
-// INIT
+// STATE
 // ═══════════════════════════════════════════════════
 let role = null;
 let db = null;
 let questionsRef = null;
 let baseFontSize = 17;
+let editingKey = null;
+let lastData = {};
 
 function isConfigured() {
   return !firebaseConfig.apiKey.startsWith("JOUW_");
 }
 
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
 function init() {
-  // Check URL param first
   const params = new URLSearchParams(window.location.search);
   const urlRole = params.get('role');
 
@@ -465,13 +528,11 @@ function init() {
         <h3>⚠ Firebase nog niet ingesteld</h3>
         <p style="color:var(--text-dim);font-size:14px;margin-top:6px;">
           Open dit bestand en vul je Firebase-config in bovenaan het <code>&lt;script&gt;</code> blok.
-          Je vindt deze gegevens in de Firebase Console → Project Settings → General → Your apps.
         </p>
       </div>`;
     return;
   }
 
-  // Init Firebase
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
   questionsRef = db.ref('kc26-qa/questions');
@@ -491,7 +552,6 @@ function showSetup() {
 
 function selectRole(r) {
   role = r;
-  // Update URL without reload
   const url = new URL(window.location);
   url.searchParams.set('role', r);
   window.history.replaceState({}, '', url);
@@ -511,12 +571,11 @@ function selectRole(r) {
     document.getElementById('fontControl').style.display = 'flex';
   }
 
-  // Listen to Firebase
   questionsRef.on('value', (snapshot) => {
-    renderQuestions(snapshot.val() || {});
+    lastData = snapshot.val() || {};
+    renderQuestions(lastData);
   });
 
-  // Focus name input for moderator
   if (r === 'moderator') {
     setTimeout(() => document.getElementById('inputName').focus(), 100);
   }
@@ -529,15 +588,14 @@ function addQuestion() {
   const name = document.getElementById('inputName').value.trim();
   const question = document.getElementById('inputQuestion').value.trim();
   const upvotes = parseInt(document.getElementById('inputUpvotes').value) || 0;
-
   if (!question) return;
 
-  const newRef = questionsRef.push();
-  newRef.set({
+  questionsRef.push().set({
     name: name || 'Anoniem',
     question: question,
     upvotes: upvotes,
-    status: 'pending',      // pending | active | done
+    status: 'pending',
+    order: Date.now(),
     timestamp: Date.now()
   });
 
@@ -547,9 +605,8 @@ function addQuestion() {
   document.getElementById('inputName').focus();
 }
 
-// Enter key support
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && role === 'moderator') {
+  if (e.key === 'Enter' && role === 'moderator' && !editingKey) {
     const active = document.activeElement;
     if (active.id === 'inputName' || active.id === 'inputUpvotes') {
       document.getElementById('inputQuestion').focus();
@@ -557,6 +614,10 @@ document.addEventListener('keydown', (e) => {
       addQuestion();
     }
   }
+  if (e.key === 'Enter' && editingKey) {
+    saveEdit();
+  }
+  if (e.key === 'Escape') closeEdit();
 });
 
 // ═══════════════════════════════════════════════════
@@ -578,16 +639,62 @@ function deleteQuestion(key) {
   questionsRef.child(key).remove();
 }
 
+function moveToTop(key) {
+  const entries = Object.entries(lastData).map(([k, v]) => ({ key: k, ...v }));
+  const pendingOrders = entries
+    .filter(q => q.status === 'pending')
+    .map(q => q.order || q.timestamp || 0);
+
+  const minOrder = pendingOrders.length > 0 ? Math.min(...pendingOrders) : Date.now();
+  questionsRef.child(key).update({ order: minOrder - 1 });
+}
+
+// ═══════════════════════════════════════════════════
+// EDIT (MODERATOR)
+// ═══════════════════════════════════════════════════
+function openEdit(key) {
+  editingKey = key;
+  const q = lastData[key];
+  if (!q) return;
+
+  document.getElementById('editName').value = q.name || '';
+  document.getElementById('editUpvotes').value = q.upvotes || 0;
+  document.getElementById('editQuestion').value = q.question || '';
+  document.getElementById('editModal').classList.add('visible');
+  setTimeout(() => document.getElementById('editQuestion').focus(), 50);
+}
+
+function closeEdit() {
+  editingKey = null;
+  document.getElementById('editModal').classList.remove('visible');
+}
+
+function saveEdit() {
+  if (!editingKey) return;
+
+  const name = document.getElementById('editName').value.trim();
+  const question = document.getElementById('editQuestion').value.trim();
+  const upvotes = parseInt(document.getElementById('editUpvotes').value) || 0;
+  if (!question) return;
+
+  questionsRef.child(editingKey).update({
+    name: name || 'Anoniem',
+    question: question,
+    upvotes: upvotes
+  });
+
+  closeEdit();
+}
+
 // ═══════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════
 function renderQuestions(data) {
   const entries = Object.entries(data).map(([k, v]) => ({ key: k, ...v }));
 
-  // Sort: active first, then by upvotes desc, then by timestamp
   const pending = entries
     .filter(q => q.status === 'pending')
-    .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0) || a.timestamp - b.timestamp);
+    .sort((a, b) => (a.order || a.timestamp || 0) - (b.order || b.timestamp || 0));
 
   const active = entries
     .filter(q => q.status === 'active')
@@ -597,29 +704,20 @@ function renderQuestions(data) {
     .filter(q => q.status === 'done')
     .sort((a, b) => b.timestamp - a.timestamp);
 
-  const allPending = [...active, ...pending]; // active on top
+  const allPending = [...active, ...pending];
 
-  // Stats
   document.getElementById('statPending').textContent = pending.length;
   document.getElementById('statActive').textContent = active.length;
   document.getElementById('statDone').textContent = done.length;
 
-  // Pending list
-  const pendingList = document.getElementById('pendingList');
-  pendingList.innerHTML = allPending.map(q => renderCard(q)).join('');
+  document.getElementById('pendingList').innerHTML = allPending.map(q => renderCard(q)).join('');
+  document.getElementById('doneList').innerHTML = done.map(q => renderCard(q)).join('');
 
-  // Done list
-  const doneList = document.getElementById('doneList');
-  doneList.innerHTML = done.map(q => renderCard(q)).join('');
-
-  // Visibility
   document.getElementById('pendingSection').style.display = allPending.length ? 'block' : 'none';
   document.getElementById('doneSection').style.display = done.length ? 'block' : 'none';
   document.getElementById('emptyState').style.display = (!allPending.length && !done.length) ? 'block' : 'none';
 
-  // Update pending label with count
-  document.getElementById('pendingLabel').textContent =
-    `Te beantwoorden (${allPending.length})`;
+  document.getElementById('pendingLabel').textContent = `Te beantwoorden (${allPending.length})`;
 }
 
 function renderCard(q) {
@@ -635,6 +733,7 @@ function renderCard(q) {
   if (role === 'presenter') {
     if (q.status === 'pending') {
       actions = `
+        <button class="q-btn btn-top" onclick="moveToTop('${q.key}')" title="Naar boven">TOP</button>
         <button class="q-btn btn-activate" onclick="setActive('${q.key}')" title="Ik beantwoord deze nu">⏵</button>
       `;
     } else if (q.status === 'active') {
@@ -648,15 +747,15 @@ function renderCard(q) {
     }
   } else {
     // Moderator
-    if (q.status === 'pending') {
+    if (q.status === 'active') {
+      // Kan terughalen als Philippe per ongeluk heeft getikt
       actions = `
-        <button class="q-btn btn-delete" onclick="deleteQuestion('${q.key}')" title="Verwijderen">✕</button>
+        <button class="q-btn" onclick="setBack('${q.key}')" title="Terughalen">↩</button>
       `;
-    } else if (q.status === 'active') {
-      // Don't interfere while presenter is answering
-      actions = '';
     } else {
+      // Pending of done: bewerken + verwijderen
       actions = `
+        <button class="q-btn btn-edit" onclick="openEdit('${q.key}')" title="Bewerken">✎</button>
         <button class="q-btn btn-delete" onclick="deleteQuestion('${q.key}')" title="Verwijderen">✕</button>
       `;
     }
