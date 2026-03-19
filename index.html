@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KC26 Q&A Live Curation</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #1a1a1e;
+    --surface: #26262b;
+    --surface-hover: #2f2f35;
+    --border: #3a3a42;
+    --text: #e8e6e3;
+    --text-dim: #9a9a9a;
+    --accent: #e8a44a;
+    --accent-dim: #c4883a;
+    --green: #5cb270;
+    --green-dim: #3d7a4c;
+    --red: #d45d5d;
+    --blue: #5b9bd5;
+    --active-glow: rgba(232, 164, 74, 0.12);
+    --done-bg: #1e2420;
+    --radius: 10px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .header-role {
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .role-moderator { background: rgba(91, 155, 213, 0.15); color: var(--blue); }
+  .role-presenter { background: rgba(232, 164, 74, 0.15); color: var(--accent); }
+
+  .header-stats { display: flex; gap: 20px; align-items: center; }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+  }
+  .stat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .stat-dot.pending { background: var(--accent); }
+  .stat-dot.active { background: var(--blue); animation: pulse 1.5s infinite; }
+  .stat-dot.done { background: var(--green); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  /* ─── SETUP SCREEN ─── */
+  .setup-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .setup-screen h1 {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .setup-screen p {
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    font-size: 15px;
+  }
+  .setup-buttons { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .setup-btn {
+    padding: 20px 40px;
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .setup-btn:hover {
+    border-color: var(--accent);
+    background: var(--active-glow);
+  }
+  .setup-btn span { display: block; font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ─── FIREBASE CONFIG SCREEN ─── */
+  .config-warning {
+    background: rgba(212, 93, 93, 0.1);
+    border: 1px solid rgba(212, 93, 93, 0.3);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    max-width: 520px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .config-warning h3 { color: var(--red); font-size: 15px; margin-bottom: 8px; }
+  .config-warning code {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ─── MAIN CONTENT ─── */
+  .main { padding: 20px 24px; max-width: 800px; margin: 0 auto; }
+
+  /* ─── ADD QUESTION FORM (MODERATOR) ─── */
+  .add-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .add-form h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+  .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .form-row:last-child { margin-bottom: 0; }
+
+  .input-field {
+    flex: 1;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-field:focus { border-color: var(--accent); }
+  .input-field::placeholder { color: var(--text-dim); }
+  .input-small { width: 90px; flex: none; text-align: center; }
+
+  .btn-add {
+    padding: 12px 24px;
+    background: var(--accent);
+    color: #1a1a1e;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .btn-add:hover { background: var(--accent-dim); }
+
+  /* ─── QUESTION CARDS ─── */
+  .section-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+
+  .question-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+
+  .q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: all 0.25s;
+    cursor: default;
+  }
+  .q-card.is-active {
+    border-color: var(--accent);
+    background: var(--active-glow);
+    box-shadow: 0 0 20px rgba(232, 164, 74, 0.08);
+  }
+  .q-card.is-done {
+    background: var(--done-bg);
+    border-color: var(--green-dim);
+    opacity: 0.6;
+  }
+
+  .q-upvotes {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    background: rgba(232, 164, 74, 0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
+    min-width: 42px;
+    text-align: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .q-upvotes::before { content: "▲ "; font-size: 10px; }
+
+  .q-content { flex: 1; min-width: 0; }
+  .q-name {
+    font-size: 13px;
+    color: var(--blue);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .q-text {
+    font-size: 17px;
+    line-height: 1.45;
+    color: var(--text);
+  }
+  /* Presenter gets bigger text */
+  .presenter-view .q-text { font-size: 21px; line-height: 1.5; }
+  .presenter-view .q-name { font-size: 15px; }
+  .presenter-view .q-upvotes { font-size: 16px; padding: 6px 12px; }
+
+  .q-actions { display: flex; gap: 6px; flex-shrink: 0; margin-top: 2px; }
+
+  .q-btn {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .q-btn:hover { background: var(--surface-hover); color: var(--text); }
+  .q-btn.btn-activate:hover { border-color: var(--accent); color: var(--accent); }
+  .q-btn.btn-done:hover { border-color: var(--green); color: var(--green); }
+  .q-btn.btn-delete:hover { border-color: var(--red); color: var(--red); }
+
+  /* Presenter gets bigger touch targets */
+  .presenter-view .q-btn { width: 52px; height: 52px; font-size: 22px; }
+  .presenter-view .q-card { padding: 20px 22px; }
+
+  .q-status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-top: 6px;
+    display: inline-block;
+  }
+  .badge-active {
+    background: rgba(232, 164, 74, 0.15);
+    color: var(--accent);
+  }
+  .badge-done {
+    background: rgba(92, 178, 112, 0.15);
+    color: var(--green);
+  }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 15px; }
+
+  /* ─── FONT SIZE CONTROL (PRESENTER) ─── */
+  .font-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .font-btn {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .font-btn:hover { background: var(--surface-hover); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 600px) {
+    .header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+    .main { padding: 16px; }
+    .form-row { flex-direction: column; }
+    .input-small { width: 100%; }
+    .q-card { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- SETUP / ROLE SELECT                             -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="setupScreen" class="setup-screen" style="display:none;">
+  <h1>KC26 Q&A Curation</h1>
+  <p>Key Colours Webinar 2026 — Live Q&A Tool</p>
+  <div id="configCheck"></div>
+  <div class="setup-buttons" id="roleButtons" style="display:none;">
+    <button class="setup-btn" onclick="selectRole('moderator')">
+      🎧 Moderator
+      <span>Mirte — vragen toevoegen</span>
+    </button>
+    <button class="setup-btn" onclick="selectRole('presenter')">
+      🎤 Presenter
+      <span>Philippe — vragen beantwoorden</span>
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- APP                                             -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="app" style="display:none;">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">KC26 Q&A</div>
+      <div class="header-role" id="roleLabel"></div>
+    </div>
+    <div class="header-stats">
+      <div class="stat"><span class="stat-dot pending"></span> <span id="statPending">0</span></div>
+      <div class="stat"><span class="stat-dot active"></span> <span id="statActive">0</span></div>
+      <div class="stat"><span class="stat-dot done"></span> <span id="statDone">0</span></div>
+      <div class="font-control" id="fontControl" style="display:none;">
+        <button class="font-btn" onclick="adjustFont(-2)">A−</button>
+        <button class="font-btn" onclick="adjustFont(2)">A+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainContent">
+
+    <!-- ADD FORM (moderator only) -->
+    <div class="add-form" id="addForm" style="display:none;">
+      <h3>Nieuwe vraag toevoegen</h3>
+      <div class="form-row">
+        <input class="input-field" id="inputName" placeholder="Naam (bijv. Anna, UK)" autocomplete="off">
+        <input class="input-field input-small" id="inputUpvotes" placeholder="▲" type="number" min="0" value="">
+      </div>
+      <div class="form-row">
+        <input class="input-field" id="inputQuestion" placeholder="Vraag..." autocomplete="off">
+        <button class="btn-add" onclick="addQuestion()">Toevoegen</button>
+      </div>
+    </div>
+
+    <!-- QUESTION LISTS -->
+    <div id="pendingSection">
+      <div class="section-label" id="pendingLabel">Te beantwoorden</div>
+      <div class="question-list" id="pendingList"></div>
+    </div>
+
+    <div id="doneSection" style="display:none;">
+      <div class="section-label">Beantwoord ✓</div>
+      <div class="question-list" id="doneList"></div>
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="icon">💬</div>
+      <p id="emptyText">Nog geen vragen doorgestuurd.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// FIREBASE CONFIG — VUL HIER JE EIGEN GEGEVENS IN
+// ═══════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDH9JM18-hDR_gd0kAmVlDpdphK2foPl0g",
+  authDomain: "qawebinars-2e851.firebaseapp.com",
+  databaseURL: "https://qawebinars-2e851-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "qawebinars-2e851",
+  storageBucket: "qawebinars-2e851.firebasestorage.app",
+  messagingSenderId: "144297048651",
+  appId: "1:144297048651:web:573a997512b9b290066bce"
+};
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+let role = null;
+let db = null;
+let questionsRef = null;
+let baseFontSize = 17;
+
+function isConfigured() {
+  return !firebaseConfig.apiKey.startsWith("JOUW_");
+}
+
+function init() {
+  // Check URL param first
+  const params = new URLSearchParams(window.location.search);
+  const urlRole = params.get('role');
+
+  if (!isConfigured()) {
+    showSetup();
+    document.getElementById('configCheck').innerHTML = `
+      <div class="config-warning">
+        <h3>⚠ Firebase nog niet ingesteld</h3>
+        <p style="color:var(--text-dim);font-size:14px;margin-top:6px;">
+          Open dit bestand en vul je Firebase-config in bovenaan het <code>&lt;script&gt;</code> blok.
+          Je vindt deze gegevens in de Firebase Console → Project Settings → General → Your apps.
+        </p>
+      </div>`;
+    return;
+  }
+
+  // Init Firebase
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  questionsRef = db.ref('kc26-qa/questions');
+
+  if (urlRole === 'moderator' || urlRole === 'presenter') {
+    selectRole(urlRole);
+  } else {
+    showSetup();
+    document.getElementById('roleButtons').style.display = 'flex';
+  }
+}
+
+function showSetup() {
+  document.getElementById('setupScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function selectRole(r) {
+  role = r;
+  // Update URL without reload
+  const url = new URL(window.location);
+  url.searchParams.set('role', r);
+  window.history.replaceState({}, '', url);
+
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const label = document.getElementById('roleLabel');
+  if (r === 'moderator') {
+    label.textContent = '🎧 Moderator';
+    label.className = 'header-role role-moderator';
+    document.getElementById('addForm').style.display = 'block';
+  } else {
+    label.textContent = '🎤 Presenter';
+    label.className = 'header-role role-presenter';
+    document.getElementById('mainContent').classList.add('presenter-view');
+    document.getElementById('fontControl').style.display = 'flex';
+  }
+
+  // Listen to Firebase
+  questionsRef.on('value', (snapshot) => {
+    renderQuestions(snapshot.val() || {});
+  });
+
+  // Focus name input for moderator
+  if (r === 'moderator') {
+    setTimeout(() => document.getElementById('inputName').focus(), 100);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// ADD QUESTION (MODERATOR)
+// ═══════════════════════════════════════════════════
+function addQuestion() {
+  const name = document.getElementById('inputName').value.trim();
+  const question = document.getElementById('inputQuestion').value.trim();
+  const upvotes = parseInt(document.getElementById('inputUpvotes').value) || 0;
+
+  if (!question) return;
+
+  const newRef = questionsRef.push();
+  newRef.set({
+    name: name || 'Anoniem',
+    question: question,
+    upvotes: upvotes,
+    status: 'pending',      // pending | active | done
+    timestamp: Date.now()
+  });
+
+  document.getElementById('inputName').value = '';
+  document.getElementById('inputQuestion').value = '';
+  document.getElementById('inputUpvotes').value = '';
+  document.getElementById('inputName').focus();
+}
+
+// Enter key support
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && role === 'moderator') {
+    const active = document.activeElement;
+    if (active.id === 'inputName' || active.id === 'inputUpvotes') {
+      document.getElementById('inputQuestion').focus();
+    } else if (active.id === 'inputQuestion') {
+      addQuestion();
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════
+function setActive(key) {
+  questionsRef.child(key).update({ status: 'active' });
+}
+
+function setDone(key) {
+  questionsRef.child(key).update({ status: 'done' });
+}
+
+function setBack(key) {
+  questionsRef.child(key).update({ status: 'pending' });
+}
+
+function deleteQuestion(key) {
+  questionsRef.child(key).remove();
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+function renderQuestions(data) {
+  const entries = Object.entries(data).map(([k, v]) => ({ key: k, ...v }));
+
+  // Sort: active first, then by upvotes desc, then by timestamp
+  const pending = entries
+    .filter(q => q.status === 'pending')
+    .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0) || a.timestamp - b.timestamp);
+
+  const active = entries
+    .filter(q => q.status === 'active')
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const done = entries
+    .filter(q => q.status === 'done')
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  const allPending = [...active, ...pending]; // active on top
+
+  // Stats
+  document.getElementById('statPending').textContent = pending.length;
+  document.getElementById('statActive').textContent = active.length;
+  document.getElementById('statDone').textContent = done.length;
+
+  // Pending list
+  const pendingList = document.getElementById('pendingList');
+  pendingList.innerHTML = allPending.map(q => renderCard(q)).join('');
+
+  // Done list
+  const doneList = document.getElementById('doneList');
+  doneList.innerHTML = done.map(q => renderCard(q)).join('');
+
+  // Visibility
+  document.getElementById('pendingSection').style.display = allPending.length ? 'block' : 'none';
+  document.getElementById('doneSection').style.display = done.length ? 'block' : 'none';
+  document.getElementById('emptyState').style.display = (!allPending.length && !done.length) ? 'block' : 'none';
+
+  // Update pending label with count
+  document.getElementById('pendingLabel').textContent =
+    `Te beantwoorden (${allPending.length})`;
+}
+
+function renderCard(q) {
+  const isActive = q.status === 'active';
+  const isDone = q.status === 'done';
+
+  let statusBadge = '';
+  if (isActive) statusBadge = '<div class="q-status-badge badge-active">⏵ Bezig</div>';
+  if (isDone) statusBadge = '<div class="q-status-badge badge-done">✓ Beantwoord</div>';
+
+  let actions = '';
+
+  if (role === 'presenter') {
+    if (q.status === 'pending') {
+      actions = `
+        <button class="q-btn btn-activate" onclick="setActive('${q.key}')" title="Ik beantwoord deze nu">⏵</button>
+      `;
+    } else if (q.status === 'active') {
+      actions = `
+        <button class="q-btn btn-done" onclick="setDone('${q.key}')" title="Beantwoord ✓">✓</button>
+      `;
+    } else {
+      actions = `
+        <button class="q-btn" onclick="setBack('${q.key}')" title="Terug naar lijst">↩</button>
+      `;
+    }
+  } else {
+    // Moderator
+    if (q.status === 'pending') {
+      actions = `
+        <button class="q-btn btn-delete" onclick="deleteQuestion('${q.key}')" title="Verwijderen">✕</button>
+      `;
+    } else if (q.status === 'active') {
+      // Don't interfere while presenter is answering
+      actions = '';
+    } else {
+      actions = `
+        <button class="q-btn btn-delete" onclick="deleteQuestion('${q.key}')" title="Verwijderen">✕</button>
+      `;
+    }
+  }
+
+  return `
+    <div class="q-card ${isActive ? 'is-active' : ''} ${isDone ? 'is-done' : ''}">
+      <div class="q-upvotes">${q.upvotes || 0}</div>
+      <div class="q-content">
+        <div class="q-name">${escHtml(q.name)}</div>
+        <div class="q-text">${escHtml(q.question)}</div>
+        ${statusBadge}
+      </div>
+      <div class="q-actions">${actions}</div>
+    </div>
+  `;
+}
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════
+// FONT SIZE (PRESENTER)
+// ═══════════════════════════════════════════════════
+function adjustFont(delta) {
+  baseFontSize = Math.max(14, Math.min(32, baseFontSize + delta));
+  document.querySelectorAll('.q-text').forEach(el => {
+    el.style.fontSize = baseFontSize + 'px';
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// GO
+// ═══════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
